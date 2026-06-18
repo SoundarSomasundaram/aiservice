@@ -1,0 +1,137 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,300;1,400;1,500;1,600;1,700&family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'ArialCustom';
+  src: url('/arial.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'SpykDisplay';
+  src: url('/SpykDisplay_MediumItalic-s.p.0bxyngwb-l_8..woff2') format('woff2');
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DieGrotesk';
+  src: url('/die_grotesk_vf_roman-s.p.121__96rd2hma.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'ABCDiatype';
+  src: url('/ABCDiatype-Medium.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background-color: #060608; /* Pitch black */
+    color: #f3f4f6; /* Gray-100 */
+    font-family: 'Plus Jakarta Sans', 'ArialCustom', -apple-system, sans-serif;
+    overflow-x: hidden;
+  }
+}
+
+.font-sans-landing {
+  font-family: 'ABCDiatype', 'DieGrotesk', 'Plus Jakarta Sans', -apple-system, sans-serif;
+}
+
+.font-serif-italic {
+  font-family: 'SpykDisplay', 'Cormorant Garamond', Georgia, serif;
+  font-style: italic;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(31, 41, 55, 0.5);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(75, 85, 99, 0.8);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 1);
+}
+
+/* Minimalist Panel Styles */
+.glass-panel {
+  background: #0d0d11;
+  border: 1px solid #1c1c1f;
+}
+
+.glass-panel-glow {
+  background: #0d0d11;
+  border: 1px solid #3c3c43;
+}
+
+.glass-input {
+  background: #0d0d11;
+  border: 1px solid #1c1c1f;
+  color: #f3f4f6;
+  transition: border-color 0.2s ease;
+}
+
+.glass-input:focus {
+  outline: none;
+  border-color: #8b5cf6; /* Violet focus */
+  background: #111116;
+}
+
+/* Animations */
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 4s infinite ease-in-out;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-float {
+  animation: float 6s infinite ease-in-out;
+}
+
+/* Glow Elements */
+.glow-indigo {
+  filter: drop-shadow(0 0 15px rgba(99, 102, 241, 0.4));
+}
+
+.glow-emerald {
+  filter: drop-shadow(0 0 15px rgba(16, 185, 129, 0.4));
+}
+
+.glow-amber {
+  filter: drop-shadow(0 0 15px rgba(245, 158, 11, 0.4));
+}
