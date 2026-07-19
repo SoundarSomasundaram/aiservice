@@ -66,6 +66,17 @@ def sanitize_name(name: str) -> str:
         cleaned = "t_" + cleaned
     return cleaned or "uploaded_table"
 
+# Health check endpoint
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint for monitoring and debugging"""
+    return {
+        "status": "ok",
+        "db_path": DB_PATH,
+        "db_exists": os.path.exists(DB_PATH),
+        "cors_origins": origins
+    }
+
 @app.post("/api/upload")
 async def upload_csv(file: UploadFile = File(...)):
     try:
@@ -161,7 +172,9 @@ async def upload_csv(file: UploadFile = File(...)):
             "columns": sanitized_headers
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"CSV upload failed: {str(e)}", exc_info=True)
+        error_detail = f"CSV upload error: {str(e)}"
+        raise HTTPException(status_code=500, detail=error_detail)
 
 class QueryRequest(BaseModel):
     query: str
