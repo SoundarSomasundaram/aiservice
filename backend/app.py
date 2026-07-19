@@ -2,10 +2,15 @@ import os
 import csv
 import re
 import sqlite3
+import logging
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 from fastapi import FastAPI, UploadFile, File, Header, HTTPException
 
@@ -18,14 +23,39 @@ from agent_workflow import run_agent_pipeline, DB_PATH
 
 app = FastAPI(title="QueryFlow API Server")
 
-# Allow requests from Vite dev server
+# Allow requests from Vite dev server and deployed frontend
+origins = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175",
+    "http://localhost:3000",
+]
+frontend_url = os.getenv("FRONTEND_URL")
+if frontend_url:
+    origins.append(frontend_url)
+    # Handle optional trailing slashes
+    if frontend_url.endswith("/"):
+        origins.append(frontend_url[:-1])
+    else:
+        origins.append(frontend_url + "/")
+
+allow_all_origins = os.getenv("ALLOW_ALL_ORIGINS", "false").lower() in ("1", "true", "yes")
+if allow_all_origins or not frontend_url:
+    origins = ["*"]
+
+logger.info(f"CORS allowed origins: {origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
-    allow_credentials=True,
+    allow_origins=origins,
+    allow_credentials=False if origins == ["*"] else True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Ensure database directory exists
+os.makedirs(os.path.dirname(DB_PATH) if os.path.dirname(DB_PATH) else ".", exist_ok=True)
+logger.info(f"Database path: {DB_PATH}")
 
 # Helper to sanitize identifiers for SQLite
 def sanitize_name(name: str) -> str:

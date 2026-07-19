@@ -8,6 +8,7 @@ import {
 
 import { executeSQL } from '../utils/sqlEngine.js';
 import { runAgentPipeline } from '../utils/agent.js';
+import { API_BASE_URL } from '../config.js';
 
 // Helper to parse double-quoted CSV rows safely
 function parseCSVLine(line) {
@@ -44,7 +45,7 @@ export default function ChatWorkspace({
   const resetWorkspace = async () => {
     if (activeTable) {
       try {
-        await fetch(`http://localhost:8000/api/tables/${activeTable.name}`, {
+        await fetch(`${API_BASE_URL}/tables/${activeTable.name}`, {
           method: "DELETE"
         });
       } catch (err) {
@@ -76,7 +77,7 @@ export default function ChatWorkspace({
     formData.append("file", file);
 
     try {
-      const response = await fetch("http://localhost:8000/api/upload", {
+      const response = await fetch(`${API_BASE_URL}/upload`, {
         method: "POST",
         body: formData
       });
@@ -91,7 +92,7 @@ export default function ChatWorkspace({
       // Fetch the actual rows from the backend SQLite database to keep client-side engine synced
       let actualRows = [];
       try {
-        const rowsResponse = await fetch(`http://localhost:8000/api/tables/${data.table}/rows`);
+        const rowsResponse = await fetch(`${API_BASE_URL}/tables/${data.table}/rows`);
         if (rowsResponse.ok) {
           const rowsData = await rowsResponse.json();
           if (rowsData.success) {

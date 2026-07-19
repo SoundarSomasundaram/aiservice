@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { Database, Search, ArrowLeft, RefreshCw, FileSpreadsheet, Download, Terminal, Play, CheckCircle } from 'lucide-react';
 import { executeSQL } from '../utils/sqlEngine.js';
+import { API_BASE_URL } from '../config.js';
 
 export default function TableInspector({ dbState }) {
   const { tableName } = useParams();
@@ -47,7 +48,7 @@ export default function TableInspector({ dbState }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`http://localhost:8000/api/tables/${tableName}/rows`);
+      const response = await fetch(`${API_BASE_URL}/tables/${tableName}/rows`);
       if (!response.ok) {
         throw new Error(`Failed to load data for table '${tableName}'.`);
       }

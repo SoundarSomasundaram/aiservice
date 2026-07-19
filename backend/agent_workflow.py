@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import json
+import tempfile
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -13,7 +14,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from rag_index import retrieve_relevant_schema
 
 # SQLite workspace database path
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "workspace.db")
+DB_PATH = os.getenv("SQLCURATION_DB_PATH") or os.path.join(tempfile.gettempdir(), "workspace.db")
 
 # Define Agent Pipeline state structure
 class AgentState(TypedDict):

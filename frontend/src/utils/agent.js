@@ -3,6 +3,7 @@
 
 import { databaseSchema } from './db.js';
 import { executeSQL } from './sqlEngine.js';
+import { API_BASE_URL } from '../config.js';
 
 // 1. RAG Node: Keyword-based semantic schema search
 export function retrieveSchema(query, activeSchema = databaseSchema) {
@@ -537,7 +538,7 @@ export async function runAgentPipeline(query, apiKey, updateProgressCallback, db
       ]);
     }
 
-    const response = await fetch("http://localhost:8000/api/query", {
+    const response = await fetch(`${API_BASE_URL}/query`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

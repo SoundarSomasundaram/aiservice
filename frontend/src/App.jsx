@@ -16,6 +16,9 @@ import FloatingNav from './components/FloatingNav.jsx';
 // Import Mock DB
 import { initialTables } from './utils/db.js';
 
+// Import Config
+import { API_BASE_URL } from './config.js';
+
 export default function App() {
   const location = useLocation();
   const isLanding = location.pathname === '/';
@@ -27,14 +30,14 @@ export default function App() {
   useEffect(() => {
     const syncDatabase = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/tables");
+        const res = await fetch(`${API_BASE_URL}/tables`);
         if (!res.ok) return;
         const data = await res.json();
         if (data.success && data.tables) {
           const syncedState = { ...initialTables };
           for (const table of data.tables) {
             try {
-              const rowsRes = await fetch(`http://localhost:8000/api/tables/${table.name}/rows`);
+              const rowsRes = await fetch(`${API_BASE_URL}/tables/${table.name}/rows`);
               if (rowsRes.ok) {
                 const rowsData = await rowsRes.json();
                 if (rowsData.success) {
