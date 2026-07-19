@@ -11,7 +11,12 @@ from langgraph.graph import StateGraph, END
 
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
-from rag_index import retrieve_relevant_schema
+
+# Relative import for same-directory modules
+try:
+    from .rag_index import retrieve_relevant_schema
+except ImportError:
+    from rag_index import retrieve_relevant_schema
 
 # SQLite workspace database path
 DB_PATH = os.getenv("SQLCURATION_DB_PATH") or os.path.join(tempfile.gettempdir(), "workspace.db")
