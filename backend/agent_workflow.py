@@ -24,7 +24,10 @@ DB_PATH = os.getenv("SQLCURATION_DB_PATH") or os.path.join(tempfile.gettempdir()
 # Define Agent Pipeline state structure
 class AgentState(TypedDict):
     query: str
+    dataset_type: str
+    dataset_name: Optional[str]
     retrieved_schema: List[Dict[str, Any]]
+    retrieved_chunks: List[str]
     sql: str
     results: Optional[List[Dict[str, Any]]]
     error: Optional[str]
@@ -94,8 +97,38 @@ def get_llm(temperature: float = 0.0, json_mode: bool = False):
 # RAG Node: Schema Discovery
 def discovery_node(state: AgentState) -> dict:
     steps = list(state.get("steps", []))
-    steps.append({"title": "Schema RAG Retrieval", "status": "running", "detail": "Searching vectors catalog..."})
     
+    if state.get("dataset_type") == "pdf":
+        steps.append({"title": "Document RAG Retrieval", "status": "running", "detail": f"Searching chunks for PDF: {state['dataset_name']}..."})
+        try:
+            try:
+                from .rag_index import retrieve_relevant_pdf_chunks
+            except ImportError:
+                from rag_index import retrieve_relevant_pdf_chunks
+                
+            chunks = retrieve_relevant_pdf_chunks(state["query"], state["dataset_name"] or "")
+            steps[-1] = {
+                "title": "Document RAG Retrieval",
+                "status": "success",
+                "detail": f"Vector search retrieved {len(chunks)} relevant document text chunks."
+            }
+            return {
+                "retrieved_chunks": chunks,
+                "steps": steps
+            }
+        except Exception as e:
+            steps[-1] = {
+                "title": "Document RAG Retrieval",
+                "status": "error",
+                "detail": f"Failed to retrieve chunks: {str(e)}"
+            }
+            return {
+                "retrieved_chunks": [],
+                "steps": steps,
+                "error": f"Document RAG failed: {str(e)}"
+            }
+            
+    steps.append({"title": "Schema RAG Retrieval", "status": "running", "detail": "Searching vectors catalog..."})
     retrieved = retrieve_relevant_schema(state["query"], state["all_schemas"])
     table_names = [s["table"] for s in retrieved]
     
@@ -201,6 +234,82 @@ def insights_node(state: AgentState) -> dict:
     steps = list(state.get("steps", []))
     steps.append({"title": "Insight Generation", "status": "running", "detail": "Running analytical insights model..."})
     
+    if state.get("dataset_type") == "pdf":
+        if not state.get("retrieved_chunks"):
+            steps[-1] = {
+                "title": "Insight Generation",
+                "status": "error",
+                "detail": "No relevant text chunks retrieved from PDF."
+            }
+            return {
+                "insights": {
+                    "summary": "Could not find any relevant information in the document to answer your query.",
+                    "chartType": "table",
+                    "chartConfig": {"xAxisKey": "", "dataKeys": [], "title": "No Context"}
+                },
+                "steps": steps
+            }
+        try:
+            chunks_str = "\n\n".join(state["retrieved_chunks"])
+            system_prompt = f"""You are a Principal Data Analyst and Business Intelligence Agent.
+Analyze the following document excerpts and write a concise, precise direct answer explaining the key findings relative to the user question.
+
+Document Excerpts:
+{chunks_str}
+
+User Question: "{state['query']}"
+
+Requirements:
+1. The "summary" MUST be extremely precise, concise, and direct (maximum 3-4 sentences).
+2. DO NOT include any markdown headers (such as '###' or '####'), titles, or list bullet points.
+3. Just provide a direct, simple response explaining the findings based on the text.
+4. Since this is a document search, suggest chartType: "table" and return empty chartConfig details.
+
+Format your response as a JSON object with this exact keys structure:
+{{
+  "summary": "Precise text summary (no headers like ###, max 4 sentences)",
+  "chartType": "table",
+  "chartConfig": {{
+    "xAxisKey": "",
+    "dataKeys": [],
+    "title": "Document Reference"
+  }}
+}}"""
+
+            llm = get_llm(temperature=0.2, json_mode=True)
+            messages = [SystemMessage(content=system_prompt)]
+            
+            response = llm.invoke(messages)
+            insights = json.loads(response.content.strip())
+            
+            steps[-1] = {
+                "title": "Insight Generation", 
+                "status": "success", 
+                "detail": "Document analysis report compiled."
+            }
+            return {
+                "insights": insights,
+                "steps": steps
+            }
+        except Exception as e:
+            steps[-1] = {
+                "title": "Insight Generation", 
+                "status": "error", 
+                "detail": f"Document insights compilation failed: {str(e)}"
+            }
+            return {
+                "insights": {
+                    "summary": f"Could not compile insights from document. Raw error: {str(e)}",
+                    "chartType": "table",
+                    "chartConfig": {
+                        "xAxisKey": "",
+                        "dataKeys": [],
+                        "title": "Document Analysis"
+                    }
+                },
+                "steps": steps
+            }
+
     if not state.get("results"):
         steps[-1] = {
             "title": "Insight Generation", 
@@ -309,8 +418,21 @@ def create_agent_graph() -> StateGraph:
     # Set entry point
     workflow.set_entry_point("discovery")
     
+    # Define route conditional after discovery
+    def route_discovery(state: AgentState) -> str:
+        if state.get("dataset_type") == "pdf":
+            return "pdf_insights"
+        return "sql_generator"
+        
     # Add transitions
-    workflow.add_edge("discovery", "generator")
+    workflow.add_conditional_edges(
+        "discovery",
+        route_discovery,
+        {
+            "pdf_insights": "insights",
+            "sql_generator": "generator"
+        }
+    )
     workflow.add_edge("generator", "execution")
     
     # Add conditional router after execution
@@ -332,13 +454,16 @@ def create_agent_graph() -> StateGraph:
 # Global compiled agent graph instance
 agent_graph = create_agent_graph()
 
-def run_agent_pipeline(query: str, all_schemas: list) -> dict:
+def run_agent_pipeline(query: str, all_schemas: list, dataset_type: str = "csv", dataset_name: str = None) -> dict:
     """
     Convenience function to execute the LangGraph Agent pipeline.
     """
     initial_state = {
         "query": query,
+        "dataset_type": dataset_type,
+        "dataset_name": dataset_name,
         "retrieved_schema": [],
+        "retrieved_chunks": [],
         "sql": "",
         "results": None,
         "error": None,

@@ -530,7 +530,7 @@ Check the tabular visualization below for exact fields and rows.`,
 }
 
 // 4. E2E Agent compiled pipeline wrapper pointing to Python Backend service
-export async function runAgentPipeline(query, apiKey, updateProgressCallback, dbState, customSchema) {
+export async function runAgentPipeline(query, apiKey, updateProgressCallback, dbState, customSchema, activeTable) {
   try {
     if (updateProgressCallback) {
       updateProgressCallback([
@@ -544,7 +544,11 @@ export async function runAgentPipeline(query, apiKey, updateProgressCallback, db
         "Content-Type": "application/json",
         "X-API-Key": apiKey || ""
       },
-      body: JSON.stringify({ query })
+      body: JSON.stringify({ 
+        query,
+        dataset_type: activeTable?.isPdf ? "pdf" : "csv",
+        dataset_name: activeTable?.name || null
+      })
     });
 
     if (!response.ok) {

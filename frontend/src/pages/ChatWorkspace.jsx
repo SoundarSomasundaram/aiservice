@@ -147,6 +147,64 @@ ChromaDB has indexed the columns and descriptions. Ask a question about this dat
     }
   };
 
+  // PDF upload handler (posts to FastAPI)
+  const handlePDFUpload = async (file) => {
+    if (!file) return;
+
+    setIsProcessing(true);
+    setProgressSteps([
+      { title: "PDF Data Ingestion", status: "running", detail: "Uploading PDF and extracting text..." }
+    ]);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/upload-pdf`, {
+        method: "POST",
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.detail || "PDF upload failed.");
+      }
+
+      const data = await response.json();
+
+      setActiveTable({
+        name: data.name,
+        fileName: data.fileName,
+        rowCount: data.pageCount,
+        isPdf: true,
+        columns: []
+      });
+
+      setChatMessages([
+        {
+          id: 'welcome',
+          role: 'assistant',
+          content: `### 📁 PDF Document Registered Successfully
+
+The document has been parsed and its semantic embeddings have been indexed in ChromaDB.
+
+| Attribute | Details |
+| :--- | :--- |
+| **Document Name** | \`${data.name}\` |
+| **Source File** | \`${data.fileName}\` |
+| **Total Pages** | ${data.pageCount} pages loaded |
+| **Status** | Ready for Natural Language Queries |
+
+Feel free to ask questions about the contents of this document in the prompt box below!`
+        }
+      ]);
+    } catch (err) {
+      alert(`PDF Ingestion Failed: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   // Pre-load demo dataset helper (generates CSV blob client-side and uploads)
   const loadDemoData = () => {
     const demoRows = [
@@ -190,7 +248,8 @@ ChromaDB has indexed the columns and descriptions. Ask a question about this dat
         apiKey, 
         setProgressSteps, 
         dbState, 
-        customSchema
+        customSchema,
+        activeTable
       );
       
       setChatMessages(prev => [
@@ -277,7 +336,7 @@ ChromaDB has indexed the columns and descriptions. Ask a question about this dat
             <div className="space-y-2">
               <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 leading-tight">QueryFlow NLP Workspace</h2>
               <p className="text-xs text-neutral-500 max-w-sm mx-auto leading-relaxed font-normal">
-                Feed in a CSV table or load the demo dataset, then query metrics using conversational instructions.
+                Feed in a CSV table or PDF document, then query metrics or content using conversational instructions.
               </p>
             </div>
           </div>
@@ -345,30 +404,32 @@ ChromaDB has indexed the columns and descriptions. Ask a question about this dat
                       )}
 
                       {/* SQL Code Block */}
-                      <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3.5">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1">
-                            <Terminal className="h-3.5 w-3.5 text-violet-500" /> Compiled SQL Query
-                          </span>
-                          <div className="flex gap-1.5">
-                            <button 
-                              onClick={() => copyText(msg.sql)}
-                              className="text-[9px] font-bold uppercase tracking-wider text-neutral-500 hover:text-black bg-white px-2.5 py-1 rounded-full border border-neutral-200 transition cursor-pointer"
-                            >
-                              Copy
-                            </button>
-                            <button 
-                              onClick={() => navigate(`/explorer/${activeTable.name}`, { state: { sql: msg.sql } })}
-                              className="text-[9px] font-bold uppercase tracking-wider text-violet-600 hover:text-white hover:bg-violet-600 bg-violet-50 px-2.5 py-1 rounded-full border border-violet-200 transition cursor-pointer"
-                            >
-                              Try Query Yourself
-                            </button>
+                      {msg.sql && (
+                        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3.5">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1">
+                              <Terminal className="h-3.5 w-3.5 text-violet-500" /> Compiled SQL Query
+                            </span>
+                            <div className="flex gap-1.5">
+                              <button 
+                                onClick={() => copyText(msg.sql)}
+                                className="text-[9px] font-bold uppercase tracking-wider text-neutral-500 hover:text-black bg-white px-2.5 py-1 rounded-full border border-neutral-200 transition cursor-pointer"
+                              >
+                                Copy
+                              </button>
+                              <button 
+                                onClick={() => navigate(`/explorer/${activeTable.name}`, { state: { sql: msg.sql } })}
+                                className="text-[9px] font-bold uppercase tracking-wider text-violet-600 hover:text-white hover:bg-violet-600 bg-violet-50 px-2.5 py-1 rounded-full border border-violet-200 transition cursor-pointer"
+                              >
+                                Try Query Yourself
+                              </button>
+                            </div>
                           </div>
+                          <pre className="text-[10px] text-neutral-800 font-mono overflow-x-auto p-2.5 rounded bg-white border border-neutral-200/60">
+                            {msg.sql}
+                          </pre>
                         </div>
-                        <pre className="text-[10px] text-neutral-800 font-mono overflow-x-auto p-2.5 rounded bg-white border border-neutral-200/60">
-                          {msg.sql}
-                        </pre>
-                      </div>
+                      )}
 
                     </div>
                   )}
@@ -478,6 +539,16 @@ ChromaDB has indexed the columns and descriptions. Ask a question about this dat
                     className="hidden" 
                   />
                 </label>
+                <label className="flex items-center justify-center gap-2 px-4 py-2 border border-dashed border-neutral-300 hover:border-neutral-500 rounded-xl bg-neutral-50 hover:bg-neutral-100/50 cursor-pointer transition text-xs font-semibold text-neutral-700 shadow-inner">
+                  <Upload className="h-4 w-4 text-neutral-500" />
+                  <span>Choose PDF Document</span>
+                  <input 
+                    type="file" 
+                    accept=".pdf" 
+                    onChange={(e) => handlePDFUpload(e.target.files[0])}
+                    className="hidden" 
+                  />
+                </label>
                 <button 
                   onClick={loadDemoData}
                   className="px-4 py-2 border border-neutral-200 hover:bg-neutral-50 rounded-xl transition text-xs font-semibold text-neutral-500 hover:text-black cursor-pointer bg-white"
@@ -490,21 +561,23 @@ ChromaDB has indexed the columns and descriptions. Ask a question about this dat
                 <div className="flex items-center gap-2 min-w-0">
                   <FileSpreadsheet className="h-4.5 w-4.5 text-violet-600 shrink-0 animate-pulse-slow" />
                   <span className="text-xs font-medium text-neutral-800 truncate">
-                    Loaded: <code className="font-mono text-neutral-900 bg-neutral-200/50 px-1 py-0.5 rounded">{activeTable.fileName}</code> ({activeTable.rowCount} rows)
+                    Loaded: <code className="font-mono text-neutral-900 bg-neutral-200/50 px-1 py-0.5 rounded">{activeTable.fileName}</code> ({activeTable.rowCount} {activeTable.isPdf ? 'pages' : 'rows'})
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <button 
-                    onClick={() => window.open(`#/explorer/${activeTable.name}`, '_blank')}
-                    className="p-1 hover:bg-neutral-200 rounded-lg text-neutral-400 hover:text-violet-600 transition cursor-pointer"
-                    title="View entire CSV dataset in new tab"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </button>
+                  {!activeTable.isPdf && (
+                    <button 
+                      onClick={() => window.open(`#/explorer/${activeTable.name}`, '_blank')}
+                      className="p-1 hover:bg-neutral-200 rounded-lg text-neutral-400 hover:text-violet-600 transition cursor-pointer"
+                      title="View entire CSV dataset in new tab"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                  )}
                   <button 
                     onClick={resetWorkspace}
                     className="p-1 hover:bg-neutral-200 rounded-lg text-neutral-400 hover:text-rose-500 transition cursor-pointer"
-                    title="Remove data and upload new CSV"
+                    title={activeTable.isPdf ? "Remove document and upload new PDF" : "Remove data and upload new CSV"}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -514,7 +587,7 @@ ChromaDB has indexed the columns and descriptions. Ask a question about this dat
             )}
           </div>
           <div className="hidden sm:block text-[10px] text-neutral-400 font-semibold select-none bg-neutral-100 border border-neutral-200/40 rounded-lg px-2.5 py-1">
-            CSV DATA INGEST
+            {activeTable?.isPdf ? 'PDF DOCUMENT' : 'CSV DATASET'}
           </div>
         </div>
 
@@ -534,8 +607,10 @@ ChromaDB has indexed the columns and descriptions. Ask a question about this dat
             onChange={(e) => setQueryInput(e.target.value)}
             placeholder={
               activeTable 
-                ? `Enter natural language query on '${activeTable.name}' dataset attributes...` 
-                : "Please feed in a CSV file or load demo dataset above first..."
+                ? (activeTable.isPdf 
+                  ? "Enter natural language query on this PDF document's contents..."
+                  : `Enter natural language query on '${activeTable.name}' dataset attributes...`)
+                : "Please feed in a CSV or PDF file first..."
             }
             disabled={isProcessing || !activeTable}
             className="flex-1 bg-transparent border-0 focus:outline-none focus:ring-0 text-sm py-2.5 px-3 disabled:opacity-60 text-neutral-800 placeholder-neutral-400"

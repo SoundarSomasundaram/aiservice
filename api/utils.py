@@ -37,7 +37,7 @@ def get_schemas_internal():
         
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != 'uploaded_pdfs'")
     tables = [row[0] for row in cursor.fetchall()]
     
     schemas = []
