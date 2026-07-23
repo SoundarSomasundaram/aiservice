@@ -418,7 +418,7 @@ def create_agent_graph() -> StateGraph:
     workflow.add_node("discovery", discovery_node)
     workflow.add_node("generator", generator_node)
     workflow.add_node("execution", execution_node)
-    workflow.add_node("insights", insights_node)
+    workflow.add_node("insights_generator", insights_node)
     
     # Set entry point
     workflow.set_entry_point("discovery")
@@ -434,7 +434,7 @@ def create_agent_graph() -> StateGraph:
         "discovery",
         route_discovery,
         {
-            "pdf_insights": "insights",
+            "pdf_insights": "insights_generator",
             "sql_generator": "generator"
         }
     )
@@ -446,13 +446,13 @@ def create_agent_graph() -> StateGraph:
         route_healing,
         {
             "healing": "generator",
-            "success": "insights",
+            "success": "insights_generator",
             "failed": END
         }
     )
     
     # Add end edge
-    workflow.add_edge("insights", END)
+    workflow.add_edge("insights_generator", END)
     
     return workflow.compile()
 

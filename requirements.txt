@@ -15,4 +15,5 @@ numpy==1.26.4
 python-multipart==0.0.32
 pypdf==4.2.0
 pysqlite3-binary==0.5.2.post3
+sentence-transformers==3.0.1
 
