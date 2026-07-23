@@ -148,9 +148,15 @@ def generator_node(state: AgentState) -> dict:
     try_num = state.get("retry_count", 0) + 1
     steps.append({"title": f"SQL Generation (Try #{try_num})", "status": "running", "detail": "Consulting SQL Agent..."})
     
-    error_context = None
+    error_context_prompt = ""
     if state.get("error"):
-        error_context = {"sql": state.get("sql", ""), "error": state.get("error", "")}
+        sql_val = state.get("sql", "")
+        err_val = state.get("error", "")
+        error_context_prompt = (
+            f"PREVIOUS ERROR CONTEXT:\n"
+            f"The query you generated: `{sql_val}` failed with error: '{err_val}'.\n"
+            f"Please self-correct this SQL query to resolve this error.\n"
+        )
         
     try:
         schema_str = json.dumps(state["retrieved_schema"], indent=2)
@@ -165,8 +171,7 @@ Rules:
 2. The query MUST be read-only (SELECT statements only). No updates, inserts, deletes, or alters.
 3. Keep column names matching the schema exactly.
 
-{f"PREVIOUS ERROR CONTEXT:\nThe query you generated: `{error_context['sql']}` failed with error: '{error_context['error']}'.\nPlease self-correct this SQL query to resolve this error." if error_context else ""}
-
+{error_context_prompt}
 Generate SQL query for user request: "{state['query']}" """
 
         llm = get_llm(temperature=0.0)
